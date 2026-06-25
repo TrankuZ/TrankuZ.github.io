@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalkulator Game</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&family=Pacifico&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #1e1e1e;
+    --bg-layar: #141414;
+    --bg-btn:   #2d2d2d;
+    --bg-clear: #D85A30;
+    --bg-equal: #1D9E75;
+    --fg:       #ffffff;
+    --fg-op:    #1D9E75;
+    --fg-abu:   #aaaaaa;
+    --radius:   16px;
+  }
+  body {
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+  }
+  .screen { display: none; width: 340px; padding: 16px; flex-direction: column; gap: 10px; }
+  .screen.active { display: flex; }
+
+  .judul {
+    font-family: 'Pacifico', cursive;
+    font-size: 26px;
+    color: var(--fg-op);
+    text-align: center;
+    text-shadow: 2px 3px 0 rgba(0,0,0,0.3);
+  }
+  .subtitle { text-align: center; color: var(--fg-abu); font-size: 11px; margin-top: -4px; }
+
+  .card { background: var(--bg-layar); border-radius: var(--radius); padding: 16px; }
+  .card-label {
+    font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 800;
+    color: var(--fg-abu); letter-spacing: 0.08em; margin-bottom: 10px;
+  }
+
+  /* progress info */
+  .progress-info { display: flex; flex-direction: column; gap: 8px; }
+  .progress-row  { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--fg-abu); }
+  .pb { font-family:'Syne',sans-serif; font-size:10px; font-weight:800; padding:3px 10px; border-radius:99px; white-space:nowrap; }
+  .pb-plus  { background:#1D9E7520; color:#1D9E75; border:1px solid #1D9E75; }
+  .pb-minus { background:#5b8dd920; color:#5b8dd9; border:1px solid #5b8dd9; }
+  .pb-kali  { background:#E8A83820; color:#E8A838; border:1px solid #E8A838; }
+  .pb-bagi  { background:#D85A3020; color:#D85A30; border:1px solid #D85A30; }
+  .pb-req   { background:#9b59b620; color:#9b59b6; border:1px solid #9b59b6; }
+
+  .start-btn {
+    width:100%; padding:16px; background:var(--bg-equal); color:#fff;
+    border:none; border-radius:12px; font-family:'Syne',sans-serif;
+    font-size:16px; font-weight:800; cursor:pointer; transition:filter .15s,transform .08s;
+  }
+  .start-btn:hover  { filter:brightness(1.15); }
+  .start-btn:active { transform:scale(0.97); }
+
+  /* leaderboard */
+  .lb-list { display:flex; flex-direction:column; gap:6px; }
+  .lb-row  { display:flex; align-items:center; gap:8px; padding:8px 10px; background:#2d2d2d; border-radius:10px; font-size:12px; }
+  .lb-rank { font-family:'Syne',sans-serif; font-weight:800; font-size:13px; width:24px; text-align:center; flex-shrink:0; }
+  .lb-rank.gold   { color:#FFD700; }
+  .lb-rank.silver { color:#C0C0C0; }
+  .lb-rank.bronze { color:#CD7F32; }
+  .lb-rank.normal { color:var(--fg-abu); }
+  .lb-name  { flex:1; color:var(--fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lb-soal  { color:var(--fg-abu); font-size:10px; }
+  .lb-skor  { font-family:'Syne',sans-serif; font-weight:800; color:var(--fg-op); }
+  .lb-empty { text-align:center; color:var(--fg-abu); font-size:12px; padding:8px 0; }
+
+  /* ── GAME ── */
+  .game-top { display:flex; justify-content:space-between; align-items:center; }
+  .op-badges { display:flex; gap:4px; }
+  .op-badge {
+    font-family:'Syne',sans-serif; font-size:10px; font-weight:800;
+    padding:3px 8px; border-radius:99px; opacity:.25; transition:opacity .4s,transform .3s;
+  }
+  .op-badge.aktif { opacity:1; transform:scale(1.1); }
+  .ob-plus  { background:#1D9E7530; color:#1D9E75; border:1px solid #1D9E75; }
+  .ob-minus { background:#5b8dd930; color:#5b8dd9; border:1px solid #5b8dd9; }
+  .ob-kali  { background:#E8A83830; color:#E8A838; border:1px solid #E8A838; }
+  .ob-bagi  { background:#D85A3030; color:#D85A30; border:1px solid #D85A30; }
+
+  .game-skor { font-family:'Syne',sans-serif; font-size:14px; font-weight:800; color:var(--fg); }
+
+  .timer-wrap { background:#2d2d2d; border-radius:99px; height:8px; overflow:hidden; }
+  .timer-bar  { height:100%; border-radius:99px; transition:width .1s linear, background-color .5s; }
+
+  .soal-progress-wrap { background:#2d2d2d; border-radius:99px; height:4px; overflow:hidden; }
+  .soal-progress-bar  { height:100%; border-radius:99px; background:#555; transition:width .3s; }
+
+  /* soal box */
+  .soal-box { background:var(--bg-layar); border-radius:var(--radius); padding:16px; text-align:center; }
+  .soal-no   { font-size:10px; color:var(--fg-abu); margin-bottom:4px; }
+  .soal-angka { font-family:'Syne',sans-serif; font-size:50px; font-weight:800; color:var(--fg); line-height:1; }
+
+  /* required operator tag */
+  .req-wrap { display:flex; justify-content:center; align-items:center; gap:6px; margin-top:8px; min-height:26px; }
+  .req-label { font-size:10px; color:var(--fg-abu); }
+  .req-tag {
+    font-family:'Syne',sans-serif; font-size:11px; font-weight:800;
+    padding:3px 12px; border-radius:99px;
+    background:#9b59b620; color:#9b59b6; border:1px solid #9b59b6;
+    animation: pulseTag 1.5s ease-in-out infinite;
+  }
+  @keyframes pulseTag { 0%,100%{box-shadow:0 0 0 0 #9b59b640} 50%{box-shadow:0 0 0 5px #9b59b600} }
+
+  .req-used {
+    background:#1D9E7520; color:#1D9E75; border:1px solid #1D9E75;
+    animation: none;
+  }
+
+  .soal-unlock { font-size:10px; margin-top:4px; min-height:14px; }
+  .soal-unlock.soon { color:#E8A838; }
+  .soal-unlock.baru { color:#1D9E75; animation:pop .4s ease; }
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.2)} 100%{transform:scale(1)} }
+
+  .feedback { text-align:center; font-family:'Syne',sans-serif; font-size:13px; font-weight:800; min-height:18px; }
+  .feedback.benar { color:#1D9E75; }
+  .feedback.salah { color:#D85A30; }
+
+  .layar {
+    background:var(--bg-layar); border-radius:var(--radius); padding:10px 14px;
+    min-height:66px; display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-end; gap:2px;
+  }
+  .layar .ekspresi { font-size:11px; color:var(--fg-abu); text-align:right; min-height:15px; word-break:break-all; }
+  .layar .angka    { font-family:'Syne',sans-serif; font-size:26px; font-weight:700; color:var(--fg); text-align:right; }
+
+  .numpad { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+  .btn {
+    background:var(--bg-btn); color:var(--fg); border:none; border-radius:12px; padding:15px 0;
+    font-family:'Syne',sans-serif; font-size:17px; font-weight:700;
+    cursor:pointer; transition:filter .12s,transform .08s; user-select:none;
+  }
+  .btn:active { transform:scale(0.93); }
+  .btn:hover  { filter:brightness(1.2); }
+  .btn.op    { color:var(--fg-op); }
+  .btn.clear { background:var(--bg-clear); }
+  .btn.equal { background:var(--bg-equal); }
+  .btn.span2 { grid-column:span 2; }
+  .btn:disabled { opacity:.3; cursor:not-allowed; transform:none; filter:none; }
+
+  /* req highlight — tombol yang diwajibkan berkedip */
+  .btn.req-highlight { box-shadow:0 0 0 2px #9b59b6; animation:btnPulse 1s ease-in-out infinite; }
+  @keyframes btnPulse { 0%,100%{box-shadow:0 0 0 2px #9b59b6} 50%{box-shadow:0 0 0 5px #9b59b640} }
+
+  /* ── GAME OVER ── */
+  .go-icon  { font-size:56px; text-align:center; animation:shake .4s ease; }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)}
+  }
+  .go-title { font-family:'Pacifico',cursive; font-size:24px; color:var(--bg-clear); text-align:center; }
+
+  .result-grid  { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .result-item  { background:#2d2d2d; border-radius:12px; padding:12px; text-align:center; }
+  .r-label { font-size:9px; color:var(--fg-abu); margin-bottom:4px; letter-spacing:.06em; }
+  .r-val   { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--fg); }
+  .r-val.green  { color:#1D9E75; }
+  .r-val.orange { color:#E8A838; }
+  .r-val.red    { color:#D85A30; }
+
+  /* jawaban yg benar ditampilkan saat game over */
+  .go-jawaban {
+    background:#2a1a1a; border-radius:12px; padding:12px 16px; text-align:center;
+    border:1px solid #D85A3040;
+  }
+  .go-jawaban .j-label { font-size:10px; color:var(--fg-abu); margin-bottom:4px; }
+  .go-jawaban .j-val   { font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:#D85A30; }
+
+  .nama-wrap { display:flex; flex-direction:column; gap:8px; }
+  .nama-label { font-size:11px; color:var(--fg-abu); text-align:center; }
+  .nama-input {
+    width:100%; background:#2d2d2d; border:1px solid #444; border-radius:10px;
+    padding:12px 14px; color:var(--fg); font-family:'Syne',sans-serif;
+    font-size:15px; font-weight:700; outline:none; transition:border-color .2s;
+  }
+  .nama-input:focus { border-color:var(--fg-op); }
+  .nama-input::placeholder { color:#555; font-weight:400; }
+  .simpan-btn {
+    width:100%; padding:13px; background:var(--bg-equal); color:#fff;
+    border:none; border-radius:10px; font-family:'Syne',sans-serif;
+    font-size:14px; font-weight:800; cursor:pointer; transition:filter .15s;
+  }
+  .simpan-btn:hover { filter:brightness(1.15); }
+
+  .action-btns { display:flex; gap:8px; }
+  .action-btn {
+    flex:1; padding:14px 0; border:none; border-radius:12px;
+    font-family:'Syne',sans-serif; font-size:14px; font-weight:800;
+    cursor:pointer; transition:filter .15s,transform .08s;
+  }
+  .action-btn:active { transform:scale(0.95); }
+  .action-btn:hover  { filter:brightness(1.15); }
+  .btn-ulang { background:var(--bg-equal); color:#fff; }
+  .btn-menu  { background:var(--bg-btn); color:var(--fg); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ MENU ═══════════ -->
+<div class="screen active" id="screenMenu">
+  <div class="judul">Kalkulator Game</div>
+  <div class="subtitle">Satu salah = Game Over!</div>
+
+  <div class="card">
+    <div class="card-label">📈 SISTEM PROGRESS (20 SOAL)</div>
+    <div class="progress-info">
+      <div class="progress-row"><span class="pb pb-plus">+ Tambah</span>Soal 1–5 | angka 1–10, waktu 20d</div>
+      <div class="progress-row"><span class="pb pb-minus">− Kurang</span>Soal 6–10 | angka 1–20, waktu 18d</div>
+      <div class="progress-row"><span class="pb pb-kali">× Kali</span>Soal 11–15 | angka 1–50, waktu 15d</div>
+      <div class="progress-row"><span class="pb pb-bagi">÷ Bagi</span>Soal 16–20 | angka 1–100, waktu 12d</div>
+      <div class="progress-row"><span class="pb pb-req">REQ OP</span>Beberapa soal wajib pakai operator tertentu!</div>
+    </div>
+  </div>
+
+  <button class="start-btn" onclick="mulaiGame()">▶ Mulai Game</button>
+
+  <div class="card">
+    <div class="card-label">🏆 LEADERBOARD TOP 10</div>
+    <div class="lb-list" id="lbList"></div>
+  </div>
+</div>
+
+<!-- ═══════════ GAME ═══════════ -->
+<div class="screen" id="screenGame">
+  <div class="game-top">
+    <div class="op-badges">
+      <span class="op-badge ob-plus"  id="badgePlus">+</span>
+      <span class="op-badge ob-minus" id="badgeMinus">−</span>
+      <span class="op-badge ob-kali"  id="badgeKali">×</span>
+      <span class="op-badge ob-bagi"  id="badgeBagi">÷</span>
+    </div>
+    <div class="game-skor">⭐ <span id="skorGame">0</span></div>
+  </div>
+
+  <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
+  <div class="soal-progress-wrap"><div class="soal-progress-bar" id="soalProgressBar"></div></div>
+
+  <div class="soal-box">
+    <div class="soal-no" id="soalNo">Soal 1 / 20</div>
+    <div class="soal-angka" id="soalAngka">?</div>
+    <div class="req-wrap" id="reqWrap" style="display:none">
+      <span class="req-label">Wajib pakai:</span>
+      <span class="req-tag" id="reqTag">−</span>
+    </div>
+    <div class="soal-unlock" id="soalUnlock"></div>
+  </div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <div class="layar">
+    <div class="ekspresi" id="gameEkspresi"></div>
+    <div class="angka"    id="gameAngka">0</div>
+  </div>
+
+  <div class="numpad">
+    <button class="btn clear" onclick="gClear()">C</button>
+    <button class="btn"       onclick="gHapus()">⌫</button>
+    <button class="btn op"    id="btnPersen" onclick="gOp('%')">%</button>
+    <button class="btn op"    id="btnBagi"   onclick="gOp('/')">÷</button>
+
+    <button class="btn" onclick="gAngka('7')">7</button>
+    <button class="btn" onclick="gAngka('8')">8</button>
+    <button class="btn" onclick="gAngka('9')">9</button>
+    <button class="btn op" id="btnKali" onclick="gOp('*')">×</button>
+
+    <button class="btn" onclick="gAngka('4')">4</button>
+    <button class="btn" onclick="gAngka('5')">5</button>
+    <button class="btn" onclick="gAngka('6')">6</button>
+    <button class="btn op" id="btnMinus" onclick="gOp('-')">−</button>
+
+    <button class="btn" onclick="gAngka('1')">1</button>
+    <button class="btn" onclick="gAngka('2')">2</button>
+    <button class="btn" onclick="gAngka('3')">3</button>
+    <button class="btn op" id="btnPlus" onclick="gOp('+')">+</button>
+
+    <button class="btn span2" onclick="gAngka('0')">0</button>
+    <button class="btn"       onclick="gTitik()">.</button>
+    <button class="btn equal" onclick="gHitung()">=</button>
+  </div>
+</div>
+
+<!-- ═══════════ GAME OVER ═══════════ -->
+<div class="screen" id="screenGameOver">
+  <div class="go-icon">💀</div>
+  <div class="go-title">Game Over!</div>
+
+  <div class="result-grid">
+    <div class="result-item">
+      <div class="r-label">SKOR</div>
+      <div class="r-val green" id="goSkor">0</div>
+    </div>
+    <div class="result-item">
+      <div class="r-label">SOAL DIJAWAB</div>
+      <div class="r-val orange" id="goSoal">0</div>
+    </div>
+    <div class="result-item">
+      <div class="r-label">SOAL BENAR</div>
+      <div class="r-val green" id="goBenar">0</div>
+    </div>
+    <div class="result-item">
+      <div class="r-label">MATI DI SOAL</div>
+      <div class="r-val red" id="goMati">—</div>
+    </div>
+  </div>
+
+  <!-- Jawaban yang benar -->
+  <div class="go-jawaban" id="goJawabanBox">
+    <div class="j-label">Jawaban yang benar:</div>
+    <div class="j-val" id="goJawaban">—</div>
+  </div>
+
+  <!-- Input nama -->
+  <div class="card nama-wrap" id="namaWrap">
+    <div class="nama-label">Masukkan namamu untuk leaderboard!</div>
+    <input class="nama-input" id="namaInput" type="text" maxlength="16" placeholder="Nama kamu...">
+    <button class="simpan-btn" onclick="simpanSkor()">💾 Simpan Skor</button>
+  </div>
+
+  <div class="action-btns">
+    <button class="action-btn btn-ulang" onclick="ulangGame()">🔄 Main Lagi</button>
+    <button class="action-btn btn-menu"  onclick="keMenu()">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  CONFIG FASE
+// ══════════════════════════════════════
+// Infinite — fase berulang tiap 5 soal, makin lama makin susah
+function getFase(idx) {
+  // Setiap 20 soal = 1 siklus, tapi waktu makin cepat tiap siklus
+  const siklus = Math.floor(idx / 20);
+  const penalti = siklus * 2; // kurangi waktu 2 detik tiap siklus
+  const pos = idx % 20;
+
+  if (pos < 5)  return { ops:['+'],            minA:1,  maxA:10+siklus*5,  waktu:Math.max(8,20-penalti), poin:10+siklus*5  };
+  if (pos < 10) return { ops:['+','-'],         minA:1,  maxA:20+siklus*10, waktu:Math.max(7,18-penalti), poin:15+siklus*5  };
+  if (pos < 15) return { ops:['+','-','*'],     minA:1,  maxA:50+siklus*10, waktu:Math.max(6,15-penalti), poin:20+siklus*5  };
+                return { ops:['+','-','*','/'], minA:2,  maxA:100+siklus*20,waktu:Math.max(5,12-penalti), poin:25+siklus*5  };
+}
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let soalList=[], soalIdx=0, skor=0, benar=0;
+let timerIntvl=null, waktuSisa=0, waktuTotal=0;
+let inputBaru=true, gEkspresi='', opsDigunakan=[];
+let jawabanBenar=0, reqOp=null, sedangFeedback=false;
+
+// ══════════════════════════════════════
+//  LEADERBOARD
+// ══════════════════════════════════════
+function getLB()      { try{return JSON.parse(localStorage.getItem('lb_kalkgame')||'[]');}catch{return[];} }
+function saveLB(data) { localStorage.setItem('lb_kalkgame', JSON.stringify(data)); }
+
+function renderLB() {
+  const lb=getLB(), el=document.getElementById('lbList');
+  if (!lb.length){el.innerHTML='<div class="lb-empty">Belum ada data. Jadilah yang pertama!</div>';return;}
+  const rc=i=>i===0?'gold':i===1?'silver':i===2?'bronze':'normal';
+  const rl=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+  el.innerHTML=lb.map((e,i)=>`
+    <div class="lb-row">
+      <span class="lb-rank ${rc(i)}">${rl(i)}</span>
+      <span class="lb-name">${e.nama}</span>
+      <span class="lb-soal">${e.benar}✓ s${e.soalKe}</span>
+      <span class="lb-skor">${e.skor}</span>
+    </div>`).join('');
+}
+renderLB();
+
+// ══════════════════════════════════════
+//  GENERATE SOAL
+// ══════════════════════════════════════
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+
+function buatSoal(idx) {
+  const fase = getFase(idx);
+  const op = fase.ops[Math.floor(Math.random()*fase.ops.length)];
+
+  let a, b, hasil;
+  if (op==='+') { a=rnd(fase.minA,fase.maxA); b=rnd(fase.minA,fase.maxA); hasil=a+b; }
+  else if (op==='-') { a=rnd(fase.minA,fase.maxA); b=rnd(fase.minA,a); hasil=a-b; }
+  else if (op==='*') { a=rnd(1,Math.min(12,fase.maxA)); b=rnd(1,Math.min(12,fase.maxA)); hasil=a*b; }
+  else { b=rnd(2,10); a=b*rnd(1,Math.floor(fase.maxA/b)); hasil=a/b; }
+
+  // Req op — SELALU ada jika fase punya lebih dari 1 operator
+  let reqOp = null;
+  if (fase.ops.length > 1) {
+    const lainnya = fase.ops.filter(o=>o!==op);
+    reqOp = lainnya[Math.floor(Math.random()*lainnya.length)];
+  }
+
+  return { target: hasil, reqOp, fase };
+}
+
+// ══════════════════════════════════════
+//  SCREEN
+// ══════════════════════════════════════
+function tampilScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ══════════════════════════════════════
+//  BADGE & TOMBOL
+// ══════════════════════════════════════
+const OP_IDS = {'+':'badgePlus','-':'badgeMinus','*':'badgeKali','/':'badgeBagi'};
+const BTN_IDS = {'*':'btnKali','/':'btnBagi','%':'btnPersen'};
+
+function updateBadges(idx) {
+  const fase = getFase(idx);
+  ['+','-','*','/'].forEach(op=>{
+    document.getElementById(OP_IDS[op]).classList.toggle('aktif', fase.ops.includes(op));
+  });
+  document.getElementById('btnKali').disabled   = !getFase(idx).ops.includes('*');
+  document.getElementById('btnBagi').disabled   = !getFase(idx).ops.includes('/');
+  document.getElementById('btnPersen').disabled = !getFase(idx).ops.includes('/');
+}
+
+function updateReqHighlight(opUsed) {
+  // Hapus semua highlight dulu
+  ['btnPlus','btnMinus','btnKali','btnBagi'].forEach(id=>{
+    document.getElementById(id).classList.remove('req-highlight');
+  });
+  const map={'+':'btnPlus','-':'btnMinus','*':'btnKali','/':'btnBagi'};
+  if (reqOp && !opUsed) {
+    const btnId = map[reqOp];
+    if (btnId) document.getElementById(btnId).classList.add('req-highlight');
+  }
+}
+
+// ══════════════════════════════════════
+//  GAME FLOW
+// ══════════════════════════════════════
+function mulaiGame() {
+  skor=0; benar=0; soalIdx=0;
+  tampilScreen('screenGame');
+  tampilSoal();
+}
+
+function tampilSoal() {
+  // Generate soal on-the-fly (infinite)
+  const soal     = buatSoal(soalIdx);
+  const fasePrev = soalIdx>0?getFase(soalIdx-1):null;
+  const faseNow  = getFase(soalIdx);
+  jawabanBenar   = soal.target;
+  reqOp          = soal.reqOp;
+  opsDigunakan   = [];
+  sedangFeedback = false;
+
+  document.getElementById('soalAngka').textContent = soal.target;
+  document.getElementById('soalNo').textContent    = `Soal ${soalIdx+1}`;
+  document.getElementById('skorGame').textContent  = skor;
+  document.getElementById('feedback').textContent  = '';
+  document.getElementById('feedback').className    = 'feedback';
+  // Progress bar soal — tiap 20 soal = 1 bar penuh
+  document.getElementById('soalProgressBar').style.width = (((soalIdx%20)/20)*100)+'%';
+
+  // Required op UI
+  const reqWrap = document.getElementById('reqWrap');
+  const reqTag  = document.getElementById('reqTag');
+  if (reqOp) {
+    const labels={'+':'Tambah (+)','-':'Kurang (−)','*':'Kali (×)','/':'Bagi (÷)'};
+    reqTag.textContent = labels[reqOp];
+    reqTag.className   = 'req-tag';
+    reqWrap.style.display = 'flex';
+  } else {
+    reqWrap.style.display = 'none';
+  }
+
+  // Unlock notif
+  const unlockEl = document.getElementById('soalUnlock');
+  if (fasePrev && JSON.stringify(faseNow.ops)!==JSON.stringify(fasePrev.ops)) {
+    const newOp = faseNow.ops[faseNow.ops.length-1];
+    const labels={'-':'Pengurangan','*':'Perkalian','/':'Pembagian'};
+    unlockEl.textContent = `🔓 ${labels[newOp]} terbuka!`;
+    unlockEl.className   = 'soal-unlock baru';
+    setTimeout(()=>unlockEl.className='soal-unlock', 2500);
+  } else {
+    unlockEl.textContent=''; unlockEl.className='soal-unlock';
+  }
+
+  updateBadges(soalIdx);
+  updateReqHighlight(false);
+  gReset();
+  mulaiTimer();
+}
+
+function mulaiTimer() {
+  clearInterval(timerIntvl);
+  waktuTotal = getFase(soalIdx).waktu;
+  waktuSisa  = waktuTotal;
+  updateTimerBar();
+  timerIntvl = setInterval(()=>{
+    waktuSisa-=0.1; updateTimerBar();
+    if (waktuSisa<=0) { clearInterval(timerIntvl); gameOver(false, '⏰ Waktu habis!'); }
+  }, 100);
+}
+
+function updateTimerBar() {
+  const pct=Math.max(0,(waktuSisa/waktuTotal)*100);
+  const bar=document.getElementById('timerBar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct>50?'#1D9E75':pct>25?'#E8A838':'#D85A30';
+}
+
+function benarHandler() {
+  if (sedangFeedback) return;
+  sedangFeedback=true;
+  clearInterval(timerIntvl);
+  benar++;
+  skor+=getFase(soalIdx).poin;
+  document.getElementById('skorGame').textContent=skor;
+  const fb=document.getElementById('feedback');
+  fb.textContent='✓ Benar! +'+getFase(soalIdx).poin+' poin';
+  fb.className='feedback benar';
+  setTimeout(()=>{ soalIdx++; tampilSoal(); }, 800);
+}
+
+function gameOver(selesai=false, pesan=null) {
+  clearInterval(timerIntvl);
+  tampilScreen('screenGameOver');
+
+  document.getElementById('goSkor').textContent  = skor;
+  document.getElementById('goSoal').textContent  = soalIdx + (selesai?0:1);
+  document.getElementById('goBenar').textContent = benar;
+  document.getElementById('goMati').textContent  = selesai ? '—' : `Soal ${soalIdx+1}`;
+
+  // Tampilkan jawaban benar saat game over karena salah/timeout
+  const jawabanBox = document.getElementById('goJawabanBox');
+  if (!selesai) {
+    document.getElementById('goJawaban').textContent = jawabanBenar;
+    jawabanBox.style.display = 'block';
+    // Update ikon & judul
+    document.querySelector('.go-icon').textContent  = pesan?.includes('⏰') ? '⏰' : '💀';
+    document.querySelector('.go-title').textContent = pesan?.includes('⏰') ? 'Waktu Habis!' : 'Game Over!';
+  } else {
+    jawabanBox.style.display = 'none';
+    document.querySelector('.go-icon').textContent  = benar>=16?'🎉':benar>=10?'😊':'😅';
+    document.querySelector('.go-title').textContent = benar>=16?'Luar Biasa!':benar>=10?'Bagus!':'Selesai!';
+  }
+
+  document.getElementById('namaWrap').style.display='flex';
+  document.getElementById('namaInput').value='';
+  setTimeout(()=>document.getElementById('namaInput').focus(), 300);
+}
+
+function simpanSkor() {
+  const nama = document.getElementById('namaInput').value.trim();
+  if (!nama) { document.getElementById('namaInput').focus(); return; }
+  let lb = getLB();
+  lb.push({ nama, skor, benar, soalKe: soalIdx+1 });
+  lb.sort((a,b)=>b.skor-a.skor||b.benar-a.benar);
+  lb = lb.slice(0,10);
+  saveLB(lb);
+  document.getElementById('namaWrap').style.display='none';
+}
+
+function ulangGame() { mulaiGame(); }
+function keMenu()    { clearInterval(timerIntvl); renderLB(); tampilScreen('screenMenu'); }
+
+// ══════════════════════════════════════
+//  INPUT KALKULATOR
+// ══════════════════════════════════════
+function gReset() {
+  gEkspresi=''; inputBaru=true; opsDigunakan=[];
+  document.getElementById('gameEkspresi').textContent='';
+  document.getElementById('gameAngka').textContent='0';
+}
+
+function gAngka(n) {
+  if (sedangFeedback) return;
+  const el=document.getElementById('gameAngka');
+  if (inputBaru){el.textContent=n;inputBaru=false;}
+  else el.textContent=el.textContent==='0'?n:el.textContent+n;
+}
+
+function gTitik() {
+  if (sedangFeedback) return;
+  const el=document.getElementById('gameAngka');
+  if (inputBaru){el.textContent='0.';inputBaru=false;}
+  else if (!el.textContent.includes('.')) el.textContent+='.';
+}
+
+function gOp(op) {
+  if (sedangFeedback) return;
+  const el=document.getElementById('gameAngka');
+  const lbl=op==='*'?'×':op==='/'?'÷':op;
+  gEkspresi+=el.textContent+' '+lbl+' ';
+  document.getElementById('gameEkspresi').textContent=gEkspresi;
+  inputBaru=true;
+
+  // Catat operator yang sudah dipakai
+  if (!opsDigunakan.includes(op)) opsDigunakan.push(op);
+
+  // Update req tag jadi hijau kalau req op sudah dipakai
+  if (reqOp && opsDigunakan.includes(reqOp)) {
+    document.getElementById('reqTag').className='req-tag req-used';
+    updateReqHighlight(true);
+  }
+}
+
+function gHapus() {
+  if (sedangFeedback) return;
+  const el=document.getElementById('gameAngka'), cur=el.textContent;
+  if (inputBaru||cur.length<=1){el.textContent='0';inputBaru=true;}
+  else el.textContent=cur.slice(0,-1);
+}
+
+function gClear() {
+  if (!sedangFeedback) {
+    gReset();
+    updateReqHighlight(false);
+    if (reqOp) document.getElementById('reqTag').className='req-tag';
+  }
+}
+
+function gHitung() {
+  if (sedangFeedback) return;
+
+  // Cek req op dulu sebelum hitung
+  if (reqOp && !opsDigunakan.includes(reqOp)) {
+    const labels={'+':'tambah (+)','-':'kurang (−)','*':'kali (×)','/':'bagi (÷)'};
+    const fb=document.getElementById('feedback');
+    fb.textContent=`⚠️ Harus pakai operator ${labels[reqOp]}!`;
+    fb.className='feedback salah';
+    setTimeout(()=>{ fb.textContent=''; fb.className='feedback'; }, 1500);
+    return;
+  }
+
+  try {
+    const el   = document.getElementById('gameAngka');
+    const expr = gEkspresi.replace(/×/g,'*').replace(/÷/g,'/') + el.textContent;
+    const hasil = Function('"use strict"; return ('+expr+')')();
+    const hs    = Number.isInteger(hasil)?String(hasil):parseFloat(hasil.toFixed(10)).toString();
+    el.textContent=hs;
+    document.getElementById('gameEkspresi').textContent=expr.replace(/\*/g,'×').replace(/\//g,'÷')+' =';
+    gEkspresi=''; inputBaru=true;
+
+    if (Math.abs(parseFloat(hs)-jawabanBenar)<0.0001) benarHandler();
+    else {
+      sedangFeedback=true;
+      clearInterval(timerIntvl);
+      const fb=document.getElementById('feedback');
+      fb.textContent='✗ Salah!';
+      fb.className='feedback salah';
+      setTimeout(()=>gameOver(false,'salah'), 800);
+    }
+  } catch(e) {
+    document.getElementById('gameAngka').textContent='Error';
+    gEkspresi=''; inputBaru=true;
+  }
+}
+
+// Keyboard
+document.addEventListener('keydown', e=>{
+  if (!document.getElementById('screenGame').classList.contains('active')) return;
+  if (e.key>='0'&&e.key<='9') gAngka(e.key);
+  else if (e.key==='.') gTitik();
+  else if (e.key==='+') gOp('+');
+  else if (e.key==='-') gOp('-');
+  else if (e.key==='*') gOp('*');
+  else if (e.key==='/'){e.preventDefault();gOp('/');}
+  else if (e.key==='Enter'||e.key==='=') gHitung();
+  else if (e.key==='Backspace') gHapus();
+  else if (e.key==='Escape') gClear();
+});
+</script>
+</body>
+</html>
